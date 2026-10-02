@@ -1051,7 +1051,7 @@ export const useStore = create<State>((set, get) => ({
   moveToRegion(keys, region) {
     const s = get();
     const mix = shownLighting(s)?.mix;
-    if (!mix || !mix.regions[region]) return;
+    if (!mix?.regions[region]) return;
     const moved = new Set(lightable(keys.map(boardId)));
     // Region 0 is "the rest": leaving every other region puts a key there.
     get().setMix({

@@ -1,0 +1,54 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": [
+			"**",
+			"!!src/data",
+			"!!src/qmk/keycodes.generated.ts",
+			"!!.cache",
+			"!!.claude",
+			"!!src-tauri"
+		]
+	},
+	"formatter": {
+		"enabled": false
+	},
+	"assist": {
+		"enabled": false
+	},
+	"css": {
+		"linter": {
+			"enabled": false
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"a11y": "off",
+			"correctness": {
+				"useExhaustiveDependencies": {
+					"level": "error",
+					"options": { "reportUnnecessaryDependencies": false }
+				}
+			},
+			"style": {
+				"noNonNullAssertion": "off"
+			},
+			"complexity": {
+				"useSimpleNumberKeys": "off"
+			},
+			"suspicious": {
+				"noShadowRestrictedNames": "off",
+				"noAssignInExpressions": "off",
+				"useIterableCallbackReturn": "off",
+				"noArrayIndexKey": "off"
+			}
+		}
+	}
+}

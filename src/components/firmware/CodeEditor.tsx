@@ -80,7 +80,16 @@ export function CodeEditor(props: {
       doc,
       extensions: [
         basicSetup,
-        keymap.of([{ key: "Mod-s", preventDefault: true, run: () => (handlers.current.onSave(), true) }]),
+        keymap.of([
+          {
+            key: "Mod-s",
+            preventDefault: true,
+            run: () => {
+              handlers.current.onSave();
+              return true;
+            },
+          },
+        ]),
         indentUnit.of("    "),
         EditorState.tabSize.of(4),
         theme,
@@ -93,6 +102,7 @@ export function CodeEditor(props: {
     });
 
   // One view; switching files swaps its state (each file keeps its own undo history).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: on a file switch only; `text` is read once to seed a new file's state
   useEffect(() => {
     if (!host.current) return;
     const v = new EditorView({ parent: host.current, state: states.get(fileKey) ?? makeState(text) });
@@ -102,7 +112,6 @@ export function CodeEditor(props: {
       v.destroy();
       view.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileKey]);
 
   // The text changed outside the editor (undo of a file operation, the module added): take it.
@@ -113,15 +122,15 @@ export function CodeEditor(props: {
     }
   }, [text]);
 
+  // On `reveal.n` alone: it counts requests, so clicking the same problem twice reveals it
+  // again. Depending on `reveal` itself would re-run on every render that rebuilds the object.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: on `reveal.n` alone, see above
   useEffect(() => {
     const v = view.current;
     if (!v || !reveal) return;
     const line = v.state.doc.line(Math.min(Math.max(reveal.line, 1), v.state.doc.lines));
     v.dispatch({ selection: EditorSelection.cursor(line.from), effects: EditorView.scrollIntoView(line.from, { y: "center" }) });
     v.focus();
-    // On `reveal.n` alone: it counts requests, so clicking the same problem twice reveals it
-    // again. Depending on `reveal` itself would re-run on every render that rebuilds the object.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reveal?.n]);
 
   return <div className="code-editor" ref={host} />;

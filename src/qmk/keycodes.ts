@@ -149,7 +149,7 @@ export function keycodeToString(kc: number): string {
 }
 
 export function hex(v: number): string {
-  return "0x" + v.toString(16).toUpperCase().padStart(4, "0");
+  return `0x${v.toString(16).toUpperCase().padStart(4, "0")}`;
 }
 
 /** Keycodes a RAM macro can press: basic keys, optionally wrapped in modifiers. */

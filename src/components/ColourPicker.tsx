@@ -23,11 +23,11 @@ export function ColourPicker(props: { value: Hsv; disabled?: boolean; noBrightne
   // Kept locally so the wheel doesn't jump while dragging (QMK's 0–255 steps are coarser).
   const [colour, setColour] = useState<PickerHsv>(toPicker(value));
   const valueJson = JSON.stringify(value);
+  // Only on a real change of the prop: `colour` is what the effect is *comparing against*, so
+  // depending on it would run this on every drag tick and fight the wheel.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: on `valueJson` alone, see above
   useEffect(() => {
     if (JSON.stringify(fromPicker(colour)) !== valueJson) setColour(toPicker(value));
-    // Only on a real change of the prop: `colour` is what the effect is *comparing against*, so
-    // depending on it would run this on every drag tick and fight the wheel.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valueJson]);
 
   const pick = (c: Hsv) => {

@@ -283,7 +283,7 @@ test("undoing the module takes out only its lines, and keeps what was written si
   // The pure part: the operation's own lines go, the rest stays.
   const before = "VIA_ENABLE = yes";
   const after = "VIA_ENABLE = yes\n# Profile switcher (KBoard Companion)\nDEFERRED_EXEC_ENABLE = yes\nSRC += profile_switcher.c\n";
-  const edited = after + "KEY_OVERRIDE_ENABLE = yes\n";
+  const edited = `${after}KEY_OVERRIDE_ENABLE = yes\n`;
   assert.equal(withoutAddedLines(edited, before, after), "VIA_ENABLE = yes\nKEY_OVERRIDE_ENABLE = yes\n");
   assert.equal(
     withoutAddedLines(after.replace("DEFERRED_EXEC_ENABLE = yes", "DEFERRED_EXEC_ENABLE = no"), before, after),
@@ -299,7 +299,7 @@ test("undoing the module takes out only its lines, and keeps what was written si
   await f().addModule("mod");
   await f().openFile("mod", "rules.mk");
   const key = fileKey("mod", "rules.mk");
-  f().edit(key, f().buffers[key].text + "KEY_OVERRIDE_ENABLE = yes\n");
+  f().edit(key, `${f().buffers[key].text}KEY_OVERRIDE_ENABLE = yes\n`);
   await f().undo(); // refused: the tab has unsaved edits the undo would change
   assert.match(f().error ?? "", /save rules\.mk first/);
   assert.ok(f().projects[0].files.includes("profile_switcher.c"), "nothing changed");

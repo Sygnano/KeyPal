@@ -145,13 +145,13 @@ function StackLighting() {
 
   // Live preview: show every change on the keyboard while it's on; stop when leaving the tab.
   const shownKey = useStructuralKey(shown);
+  // `shown` deliberately isn't a dependency: `shownKey` is the same thing without a new
+  // reference on every render (see useStructuralKey).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `shownKey` stands for `shown`, see above
   useEffect(() => {
     if (!live || !shown) return;
     const t = setTimeout(() => api.previewLighting(shown).catch(() => {}), 40);
     return () => clearTimeout(t);
-    // `shown` deliberately isn't a dependency: `shownKey` is the same thing without a new
-    // reference on every render (see useStructuralKey).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live, shownKey]);
   useEffect(() => () => void api.previewLighting(null).catch(() => {}), []);
   const toggleLive = (on: boolean) => {

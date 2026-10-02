@@ -18,19 +18,19 @@ import type {
 } from "./firmwareTypes";
 import { BOARD, fallbackBaseKeymap } from "./layout";
 import type { Legend } from "../qmk/labels";
-import {
-  type AppConfig,
-  type AppInfo,
-  type UpdateInfo,
-  type AppSettings,
-  type BaseKeymap,
-  type EngineState,
-  type FocusState,
-  type KeyId,
-  type LayoutList,
-  type Lighting,
-  type Profile,
-  type RunningProgram,
+import type {
+  AppConfig,
+  AppInfo,
+  UpdateInfo,
+  AppSettings,
+  BaseKeymap,
+  EngineState,
+  FocusState,
+  KeyId,
+  LayoutList,
+  Lighting,
+  Profile,
+  RunningProgram,
 } from "./types";
 
 /** Everything the app asks of its Rust side. The Firmware tab's calls are `fw…` (FirmwareBackend). */

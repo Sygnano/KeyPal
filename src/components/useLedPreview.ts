@@ -34,11 +34,11 @@ export function useLedPreview(opts: {
   keyOf.current = keyOfKc;
 
   const lightingKey = useStructuralKey(lighting);
+  // `lighting` deliberately isn't a dependency: it is a fresh object on every render, and what
+  // matters is whether its contents changed (`lightingKey`).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `lightingKey` stands for `lighting`, see above
   useEffect(() => {
     sim.setLighting(lighting);
-    // `lighting` deliberately isn't a dependency: it is a fresh object on every render, and what
-    // matters is whether its contents changed (`lightingKey`).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sim, lightingKey]);
 
   useEffect(() => {
@@ -85,7 +85,6 @@ export function useLedPreview(opts: {
       window.removeEventListener("keydown", onKey);
     };
     // Paused, an edit repaints the frozen frame; playing, the loop picks it up anyway.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sim, board, on, playing, playing ? -1 : lightingKey]);
 
   // Off (another tab): the keys go back to plain caps.

@@ -50,12 +50,12 @@ export function InstallFirmwareDialog() {
     job && job.kind === "flash" && job.state !== "running" ? job : null;
   const has = engine.connected && engine.firmware === "ok";
 
+  // Once, when the dialog opens: the store actions are stable (`useFirmware.getState()`).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, on open, see above
   useEffect(() => {
     if (!ready) void init();
     const t = setInterval(() => void refreshStatus(), SCAN_MS);
     return () => clearInterval(t);
-    // Once, when the dialog opens: the store actions are stable (`useFirmware.getState()`).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const close = () => openInstall(false);

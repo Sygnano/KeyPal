@@ -1,5 +1,5 @@
-# Releases follow the version in the code. Change it in package.json, src-tauri/Cargo.toml and
-# src-tauri/tauri.conf.json (all three must agree) and push to main: when that version has no release
+# Releases follow the version in the code: set it with `pnpm bump <version>` (package.json,
+# src-tauri/Cargo.toml and src-tauri/tauri.conf.json must agree) and push to main: when that version has no release
 # yet, this builds the Windows installer (NSIS) and every keyboard's ready-made firmware and attaches
 # them to a **draft** release "v<version>" (the firmware to a pre-release "firmware-v<version>",
 # see attach-firmware), to check and publish by hand. No tag to push: GitHub

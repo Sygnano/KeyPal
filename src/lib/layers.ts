@@ -43,7 +43,7 @@ export function layerName(color: Hsv, layers: ColorLayer[]): string {
 
 /** Older files: one flat colour per key. Becomes one layer per colour. */
 export function migrateLighting(l: Lighting | null): Lighting | null {
-  if (!l || !l.keys || l.layers?.length) return l;
+  if (!l?.keys || l.layers?.length) return l;
   const layers: ColorLayer[] = [];
   for (const [id, hsv] of Object.entries(l.keys)) {
     const same = layers.find((x) => sameHsv(x.color, hsv));
