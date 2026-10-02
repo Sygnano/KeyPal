@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Source for `pnpm tauri icon src-tauri/icons/icon.svg`: a keycap with a strip of label tape. -->
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="#1f252e"/>
+  <rect x="152" y="176" width="720" height="720" rx="120" fill="#b3aea2"/>
+  <rect x="200" y="152" width="624" height="600" rx="96" fill="#d9d5cb"/>
+  <g transform="rotate(-8 512 452)">
+    <rect x="150" y="372" width="724" height="160" rx="14" fill="#f2c14e"/>
+    <rect x="150" y="512" width="724" height="20" rx="8" fill="#d6a633"/>
+  </g>
+  <path d="M430 380 L430 540 L610 460 Z" fill="#3b2f0a" transform="rotate(-8 512 452)"/>
+</svg>

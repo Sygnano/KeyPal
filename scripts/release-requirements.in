@@ -1,0 +1,5 @@
+# The QMK CLI the release workflow builds the ready-made firmware with. Pinned with hashes in
+# release-requirements.txt (regenerate: see the header there).
+qmk==1.2.0
+# 0.0.31 is published as source only: building it would fetch setuptools without hash checks.
+halo==0.0.30

@@ -1,0 +1,17 @@
+{
+  // The Node-side TypeScript: the self-test, the `node --test` suites and their helpers.
+  //
+  // These were never type-checked: `tsconfig.json` only includes `src`, and esbuild strips types
+  // without looking at them, so a test asserting against a field that no longer existed still
+  // compiled and still passed. They need Node's types, which the app itself must not have, hence
+  // a project of their own rather than a wider `include`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo"
+  },
+  // `src/vite-env.d.ts` comes along because these files import the app, which uses
+  // `import.meta.glob` (Vite's, in `boards.ts`).
+  "include": ["tests", "scripts", "e2e", "src/vite-env.d.ts"]
+}

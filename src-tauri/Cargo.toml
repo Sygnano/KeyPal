@@ -1,0 +1,57 @@
+[package]
+name = "kboard-companion"
+version = "1.0.0"
+description = "Per-program key remaps, macros and lighting for Keychron keyboards"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/Sygnano/kboard-companion"
+edition = "2021"
+
+[lib]
+name = "v6ps_lib"
+path = "src/lib.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+indexmap = { version = "2", features = ["serde"] }
+# windows-native: pure-Rust backend, no C toolchain needed. linux-static-hidraw: dev builds on Linux.
+hidapi = { version = "2.6", default-features = false, features = ["windows-native", "linux-static-hidraw"] }
+log = "0.4.34"
+# Program icons as PNG data URLs (both already come with Tauri).
+png = "0.17"
+base64 = "0.22"
+tauri-plugin-log = "2.10.0"
+tauri-plugin-notification = "2.5.0"
+tauri-plugin-opener = "2.6.0"
+ureq = "3.4.2"
+sha2 = "0.10"
+tauri-plugin-updater = "2"
+
+[target.'cfg(windows)'.dependencies]
+# 0.62 is what Tauri's own stack (tao) already pulls in, so this shares one copy instead of adding
+# a third `windows` crate to the build.
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_System_Threading",
+  "Win32_System_Registry",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_Devices_DeviceAndDriverInstallation",
+] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

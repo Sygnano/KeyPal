@@ -1,0 +1,7 @@
+# This file is byte-compared against generated text by the Rust test
+# protocol::tests::firmware_fixture, so it must never be checked out with CRLF
+# (a Windows runner with core.autocrlf=true would fail the test).
+firmware/test/fixture.h text eol=lf
+
+# Shell scripts break under bash when they carry CRLF line endings.
+*.sh text eol=lf

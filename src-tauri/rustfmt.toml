@@ -1,0 +1,5 @@
+# The project's style: compact struct literals and calls on one line where they fit, and a wider
+# line than rustfmt's default (the code reads in long, single-purpose lines). `cargo fmt` with this
+# file is what CI checks, so the tree stays formatted without churning the existing style.
+max_width = 140
+use_small_heuristics = "Max"

@@ -1,0 +1,12 @@
+node_modules
+# pnpm is this project's package manager — don't let an npm install sneak its lockfile back in.
+package-lock.json
+dist
+src-tauri/target
+src-tauri/gen
+.cache/
+tsconfig.tsbuildinfo
+docs/
+CLAUDE.md
+.claude/
+.gitmodules

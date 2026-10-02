@@ -1,0 +1,166 @@
+# Checks every push and pull request: the UI (types, tests, build), the Rust core (tests, clippy;
+# on Windows, what the app targets), the firmware module on the PC (host test), and the module
+# built into Keychron's real firmware for a few different boards.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  # The release workflow calls this, so a tag on a red commit can't ship.
+  workflow_call:
+  # Weekly: Keychron's firmware moves on; the module build and the generated data should follow.
+  schedule:
+    - cron: "0 6 * * 1"
+
+# Per workflow: called from the release, `github.workflow` is "Release", so the release's own CI
+# and the push's CI no longer cancel each other (a shared "ci-<ref>" group cancelled the push's run
+# on every release push). A newer push still cancels an older run of the same workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
+# Read-only: CI never writes to the repository (the release workflow calls it too).
+permissions:
+  contents: read
+
+jobs:
+  ui:
+    name: UI (types, tests, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Both projects: `tsconfig.json` is the app, `tsconfig.node.json` the tests and scripts,
+      # which esbuild would otherwise bundle without ever checking their types.
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm test
+      # The UI in a real browser, against the mock backend. The runner image already has Chrome,
+      # so `playwright-core` needs no browser download; the suite skips itself if none is found.
+      - run: pnpm run e2e
+      - run: pnpm exec vite build
+      - run: pnpm audit --audit-level=moderate
+
+  rust:
+    name: Rust core (tests, clippy)
+    runs-on: windows-latest
+    env:
+      # No debug info in test builds: less to compile and link, and nothing here uses a debugger.
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v7
+      # tauri::generate_context! embeds the UI folder, so it has to exist; what's in it doesn't
+      # matter to the Rust tests (the `ui` job builds and checks the real one). Saves installing
+      # pnpm and Node and building it here.
+      - run: mkdir dist && echo '<!doctype html>' > dist/index.html
+        shell: bash
+      # The runner image's Rust (rustup stable with clippy and rustfmt) rather than downloading a
+      # newer one each run (the release job still installs current stable for the build it ships).
+      - run: rustc --version && cargo clippy --version && cargo fmt --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: cargo fmt --check
+        working-directory: src-tauri
+      - run: cargo test
+        working-directory: src-tauri
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: src-tauri
+
+  firmware-host:
+    name: Firmware module (host test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: sh firmware/test/run.sh
+
+  firmware-build:
+    name: Firmware module in Keychron's firmware
+    # 24.04: Python 3.12, which scripts/release-requirements.txt is resolved for.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # dfu-util brings dfu-suffix, which QMK runs on the .bin of every DFU-bootloader board.
+      - name: Toolchain (ARM GCC, QMK CLI)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi dfu-util
+          python3 -m venv "$RUNNER_TEMP/qmk-venv"
+          "$RUNNER_TEMP/qmk-venv/bin/pip" install --require-hashes --only-binary :all: -r scripts/release-requirements.txt
+          echo "$RUNNER_TEMP/qmk-venv/bin" >> "$GITHUB_PATH"
+      # Only Keychron's keyboards and the four submodules their builds need (~510 MB), like the
+      # app's Firmware mode.
+      - name: Keychron's firmware (2025q3, sparse)
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse --branch 2025q3 --single-branch https://github.com/Keychron/qmk_firmware.git "$RUNNER_TEMP/kqmk"
+          cd "$RUNNER_TEMP/kqmk"
+          git sparse-checkout set $(git ls-tree -d --name-only HEAD | grep -vE '^(keyboards|tests|\.github|\.vscode)$' | tr '\n' ' ') keyboards/keychron
+          git submodule update --init --depth 1 --recommend-shallow lib/chibios lib/chibios-contrib lib/lufa lib/printf
+          echo "QMK_DIR=$RUNNER_TEMP/kqmk" >> "$GITHUB_ENV"
+      # The board the app was built on, a wireless Max, a white-backlight one (no RGB matrix), and
+      # one whose own code takes the indicators hook (the module then uses _user). Each build's log
+      # is captured, and a failure writes its tail (with the toolchain versions) into the job
+      # summary — the raw logs need sign-in to read, the summary does not.
+      - name: The module in Keychron's firmware
+        # Each board's build on every core (one at a time, so its log stays readable).
+        env:
+          MAKEFLAGS: -j4
+        run: |
+          set -o pipefail
+          for board in keychron/v6_8k/iso_encoder keychron/q1_max/ansi_encoder keychron/k8_max/ansi/white keychron/s1/ansi/white; do
+            echo "::group::scripts/build_module.sh $board"
+            if sh scripts/build_module.sh "$board" 2>&1 | tee build.log; then
+              echo "::endgroup::"
+            else
+              echo "::endgroup::"
+              {
+                echo "### \`scripts/build_module.sh $board\` failed"
+                echo
+                echo "- $(make --version | head -1)"
+                echo "- $(arm-none-eabi-gcc --version | head -1)"
+                echo "- $(python3 --version), qmk $(qmk --version)"
+                echo "- Keychron tree: \`$(git -C "$QMK_DIR" log -1 --oneline)\`"
+                echo
+                echo '```'
+                tail -n 100 build.log
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          done
+      # Keychron changed their keyboards since the data was generated: shown, not failed — it is
+      # their tree moving, not this repository breaking. The weekly run is what catches it, so the
+      # drift is written into the job summary where it will actually be read.
+      - name: Generated data up to date
+        id: drift
+        continue-on-error: true
+        # --porcelain also lists new board files, which `git diff` wouldn't.
+        run: |
+          python3 scripts/generate_from_qmk.py "$QMK_DIR"
+          test -z "$(git status --porcelain -- src/data src/qmk/keycodes.generated.ts)"
+      - name: Say so in the summary
+        if: steps.drift.outcome == 'failure'
+        run: |
+          head=$(git -C "$QMK_DIR" rev-parse HEAD)
+          {
+            echo "### Generated board data is out of date"
+            echo
+            echo "Keychron's \`2025q3\` has moved since \`src/data\` was generated (head: \`$head\`). Re-run (\`/regen-boards\`) from that commit and, in the same change, set \`KEYCHRON_COMMIT\` in \`.github/workflows/release.yml\` to it: the release refuses board data that doesn't match the commit it builds firmware from."
+            echo
+            echo '```sh'
+            echo "python3 scripts/generate_from_qmk.py <your Keychron qmk_firmware checkout>"
+            echo '```'
+            echo
+            echo '```'
+            git status --porcelain -- src/data src/qmk/keycodes.generated.ts
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          git checkout -- src/data src/qmk/keycodes.generated.ts
+          git clean -fq -- src/data

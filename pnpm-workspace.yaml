@@ -1,0 +1,4 @@
+# pnpm settings for this project (pnpm 11+ keeps config here, not in package.json).
+allowBuilds:
+  # esbuild's install script downloads its platform binary — needed by `pnpm test`/`e2e`.
+  esbuild: true

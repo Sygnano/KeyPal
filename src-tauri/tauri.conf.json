@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "KBoard Companion",
+  "version": "1.0.0",
+  "identifier": "fr.sygnano.kboard-companion",
+  "build": {
+    "beforeDevCommand": "pnpm dev:ui",
+    "devUrl": "http://localhost:1520",
+    "beforeBuildCommand": "pnpm build:ui",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "KBoard Companion",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1100,
+        "minHeight": 720,
+        "center": true,
+        "create": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVBMjQwQkJCQjhFRjIyNTgKUldSWUl1KzR1d3NrNnVUSzk4UnVkQlNDM3g3YlpobnkzRzhWL0E2V0txR0dmVEJKenpCODhIQW4K",
+      "endpoints": [
+        "https://github.com/Sygnano/kboard-companion/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
