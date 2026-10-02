@@ -1004,7 +1004,9 @@ body.is-reordering, body.is-reordering * { cursor: grabbing !important; }
 .flash-notes { margin: 4px 0 10px; padding-left: 18px; }
 .flash-notes li { margin: 4px 0; }
 .fw-main { grid-template-rows: auto auto minmax(200px, 1fr) minmax(212px, 26%); }
-.preflight { overflow: auto; max-height: 46vh; min-height: min-content; flex: none; }
+/* min-height 0: in a short window the grid shrinks this row and the list scrolls, instead of
+   the list spilling under the editor. */
+.preflight { overflow: auto; max-height: 46vh; min-height: 0; flex: none; }
 .fw-main.is-basic { grid-template-rows: auto minmax(200px, 1fr) minmax(212px, 26%); }
 /* In the sidebar the rows have a third of the width: actions go under the text. */
 /* The whole list, always open; it scrolls only in a window too short to hold it. */
