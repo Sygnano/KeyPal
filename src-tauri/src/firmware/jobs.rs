@@ -18,6 +18,8 @@ pub enum JobKind {
     Tools,
     Build,
     Flash,
+    /// Reading the keyboard's firmware into a backup, nothing written.
+    Backup,
 }
 
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -175,6 +177,7 @@ pub fn kind_name(kind: JobKind) -> &'static str {
         JobKind::Tools => "tools",
         JobKind::Build => "build",
         JobKind::Flash => "flash",
+        JobKind::Backup => "backup",
     }
 }
 

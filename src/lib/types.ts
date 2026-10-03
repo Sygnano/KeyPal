@@ -194,6 +194,8 @@ export interface AppSettings {
   /** Firmware tab: the ready-made firmware, or building your own. Null until the user picks one:
    * the tab then opens on whichever suits what's installed. */
   fwMode: FwMode | null;
+  /** Firmware: read what is on the keyboard into a backup before every flash. */
+  fwBackup: boolean;
   /** Light or dark, or follow Windows. */
   theme: Theme;
   /** Colours saved in the colour picker, to reuse in any profile. */
@@ -222,6 +224,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fwMsysPath: null,
   fwSourcePath: null,
   fwMode: null,
+  fwBackup: true,
   theme: "system",
   savedColors: [],
   lastBoard: null,

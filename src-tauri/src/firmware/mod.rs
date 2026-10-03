@@ -1,6 +1,7 @@
 //! The Firmware tab: getting what's needed to build and flash Keychron firmware (preflight), the
 //! user's firmware projects, and building and flashing them.
 
+pub mod backup;
 pub mod http;
 pub mod jobs;
 pub mod projects;
@@ -192,12 +193,13 @@ impl Firmware {
     /// Writes the app's ready-made firmware for `board` (no QMK MSYS needed): see `quick`.
     /// `device`: the instance id of a device already in bootloader mode that the user picked as
     /// their keyboard — the only way past the checks that keep the app from writing to something else.
-    pub fn flash_prebuilt(&self, board: &'static crate::board::Board, device: Option<String>) -> Result<u64, String> {
+    /// `backup`: read the firmware on the keyboard into a backup first (`backup::read`).
+    pub fn flash_prebuilt(&self, board: &'static crate::board::Board, device: Option<String>, backup: bool) -> Result<u64, String> {
         quick::method_for(board)?;
         let paths = self.paths.clone();
         let store = self.store();
         self.jobs.start(jobs::JobKind::Flash, move |ctx| {
-            let out = quick::flash_prebuilt(ctx, &paths, board, device.as_deref())?;
+            let out = quick::flash_prebuilt(ctx, &paths, board, device.as_deref(), backup)?;
             // The app's ready-made firmware, not one of the user's projects: none of them is on it.
             if let Some(kb) = &board.firmware {
                 store.clear_flashed(kb);
@@ -227,7 +229,7 @@ impl Firmware {
     /// picked in the Flash dialog. When the last build isn't of the files as they are (an update
     /// of the module, an edit, no build yet), it is built first, in the same task: what goes on
     /// the keyboard is always the project as the user sees it.
-    pub fn flash_project(&self, chosen: &Chosen, id: &str, device: Option<String>) -> Result<u64, String> {
+    pub fn flash_project(&self, chosen: &Chosen, id: &str, device: Option<String>, backup: bool) -> Result<u64, String> {
         let store = self.store();
         let project = store.get(id)?;
         let board = board_for(&project.keyboard)
@@ -252,9 +254,37 @@ impl Firmware {
             if !bin.exists() {
                 return Err("The built firmware file is gone: build it again.".into());
             }
-            let out = quick::flash_bin(ctx, &paths, board, &bin, device.as_deref(), "project", None)?;
+            let opts = quick::FlashOptions { chosen: device.as_deref(), backup, source: "project", release: None };
+            let out = quick::flash_bin(ctx, &paths, board, &bin, &opts)?;
             // It is the firmware on that keyboard now, whatever was marked before.
             let _ = store.set_flashed_build(&id);
+            Ok(out)
+        })
+    }
+
+    /// Reads the firmware on `board` into a backup, without writing anything (`backup::back_up`).
+    /// `device`: as for a flash.
+    pub fn back_up(&self, board: &'static crate::board::Board, device: Option<String>) -> Result<u64, String> {
+        quick::method_for(board)?;
+        let paths = self.paths.clone();
+        self.jobs.start(jobs::JobKind::Backup, move |ctx| backup::back_up(ctx, &paths, board, device.as_deref()))
+    }
+
+    /// Writes a backup back to its keyboard (a flash job: the status tracker follows it).
+    /// `backup`: back up what is on the keyboard now first.
+    pub fn restore_backup(&self, id: &str, device: Option<String>, backup: bool) -> Result<u64, String> {
+        let (record, _) = backup::get(&self.paths, id)?;
+        let board = crate::board::by_id(&record.board)
+            .ok_or(format!("This backup is of a keyboard the app no longer knows ({}).", record.board))?;
+        let paths = self.paths.clone();
+        let store = self.store();
+        let id = id.to_string();
+        self.jobs.start(jobs::JobKind::Flash, move |ctx| {
+            let out = backup::restore(ctx, &paths, &id, device.as_deref(), backup)?;
+            // Whatever it was, the app can't tell which project (if any) it was built from.
+            if let Some(kb) = &board.firmware {
+                store.clear_flashed(kb);
+            }
             Ok(out)
         })
     }

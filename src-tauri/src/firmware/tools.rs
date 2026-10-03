@@ -40,6 +40,11 @@ impl Paths {
     pub fn downloads(&self) -> PathBuf {
         self.qmk.join("downloads")
     }
+    /// `%APPDATA%\<app>\firmware-backups`: what was on the keyboard before the app wrote to it.
+    /// Beside the projects, not in them (a folder there is a project), and roaming with them.
+    pub fn backups(&self) -> PathBuf {
+        self.projects.with_file_name("firmware-backups")
+    }
     fn drivers_file(&self) -> PathBuf {
         self.qmk.join("drivers.txt")
     }

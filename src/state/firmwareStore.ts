@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import type { FwMode } from "../lib/types";
 import type {
   CheckState,
+  FirmwareBackup,
   FirmwareProject,
   FirmwareStatus,
   JobEvent,
@@ -139,6 +140,8 @@ export interface FirmwareState {
   /** The board `prebuilt` is about, and whether the request is still out. */
   prebuiltBoard: string | null;
   prebuiltLoading: boolean;
+  /** What was on the keyboard before the app wrote to it, newest first. */
+  backups: FirmwareBackup[];
 
   init(): Promise<void>;
   refreshStatus(): Promise<void>;
@@ -190,6 +193,15 @@ export interface FirmwareState {
   /** `device`: the instance id of a device already in bootloader mode that the user picked as
    * their keyboard. Without it the backend refuses one it can't attribute (`quick::pick_bootloader`). */
   flashPrebuilt(board: string, device?: string | null): Promise<void>;
+  refreshBackups(): Promise<void>;
+  /** Reads the firmware on a board's keyboard (`board.rs` id) into a backup, writing nothing.
+   * `device` as for `flashPrebuilt`. */
+  backUp(board: string, device?: string | null): Promise<void>;
+  /** Writes a backup back to the keyboard it came from (a flash task). */
+  restoreBackup(id: string, device?: string | null): Promise<void>;
+  /** Deletes a backup for good (the UI asks first). */
+  deleteBackup(id: string): Promise<void>;
+  openBackups(): Promise<void>;
   undo(): Promise<void>;
   redo(): Promise<void>;
   showProblem(p: Problem): Promise<void>;
@@ -328,6 +340,7 @@ export const useFirmware = create<FirmwareState>((set, get) => {
     if (e.state === "ok") set({ notice: e.message });
     get().refreshStatus();
     if (e.kind === "build" || e.kind === "flash") get().refreshProjects();
+    if (e.kind === "flash" || e.kind === "backup") get().refreshBackups();
     if (e.kind === "source") get().loadKeyboards();
   }
 
@@ -353,6 +366,7 @@ export const useFirmware = create<FirmwareState>((set, get) => {
     prebuiltError: null,
     prebuiltBoard: null,
     prebuiltLoading: false,
+    backups: [],
 
     async init() {
       // Subscribe afresh (the previous subscriptions go), so a second init never doubles events.
@@ -371,7 +385,11 @@ export const useFirmware = create<FirmwareState>((set, get) => {
           }));
         }),
       ];
-      await Promise.all([get().refreshProjects(), get().refreshStatus()]);
+      await Promise.all([
+        get().refreshProjects(),
+        get().refreshStatus(),
+        get().refreshBackups(),
+      ]);
       const running = get().status?.job;
       if (running && !get().job)
         set({
@@ -899,6 +917,32 @@ export const useFirmware = create<FirmwareState>((set, get) => {
 
     flashPrebuilt: (board, device) =>
       startJob("flash", () => api.fwFlashPrebuilt(board, device ?? null)),
+
+    async refreshBackups() {
+      const backups = await attempt("Could not list the firmware backups", () =>
+        api.fwBackups(),
+      );
+      if (backups !== FAIL) set({ backups });
+    },
+
+    backUp: (board, device) =>
+      startJob("backup", () => api.fwBackUp(board, device ?? null)),
+
+    restoreBackup: (id, device) =>
+      startJob("restore", () => api.fwRestoreBackup(id, device ?? null)),
+
+    async deleteBackup(id) {
+      const ok = await attempt("Could not delete the backup", () =>
+        api.fwDeleteBackup(id),
+      );
+      if (ok !== FAIL) await get().refreshBackups();
+    },
+
+    async openBackups() {
+      await attempt("Could not open the backups folder", () =>
+        api.fwOpenBackups(),
+      );
+    },
 
     async undo() {
       const step = get().past.at(-1);

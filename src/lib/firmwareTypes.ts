@@ -63,6 +63,20 @@ export interface PrebuiltInfo {
   ownRelease: boolean;
 }
 
+/** What was on a keyboard before the app wrote to it (`firmware::backup`). */
+export interface FirmwareBackup {
+  /** `<board id>-<seconds since 1970>`. */
+  id: string;
+  /** The keyboard it was read from (a `board.rs` id): it is only written back to that model. */
+  board: string;
+  /** The keyboard's name then. */
+  name: string;
+  /** Seconds since 1970. */
+  at: number;
+  size: number;
+  sha256: string;
+}
+
 export interface UsbDevice {
   vid: number;
   pid: number;
@@ -100,7 +114,9 @@ export type JobKind =
   | "drivers"
   | "tools"
   | "build"
-  | "flash";
+  | "flash"
+  /** Reading the keyboard's firmware into a backup, nothing written. */
+  | "backup";
 
 export interface JobEvent {
   id: number;

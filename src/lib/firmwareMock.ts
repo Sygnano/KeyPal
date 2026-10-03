@@ -1,4 +1,5 @@
 import type {
+  FirmwareBackup,
   FirmwareProject,
   FirmwareStatus,
   JobEvent,
@@ -33,6 +34,14 @@ export interface FirmwareBackend {
    * `device`: the instance id of a device already in bootloader mode that the user picked. */
   fwFlashPrebuilt(board: string, device: string | null): Promise<number>;
   fwEnterBootloader(): Promise<void>;
+  /** The firmware backups, newest first. */
+  fwBackups(): Promise<FirmwareBackup[]>;
+  /** Reads the firmware on a board's keyboard into a backup, writing nothing. */
+  fwBackUp(board: string, device: string | null): Promise<number>;
+  /** Writes a backup back to the keyboard it was read from (a flash task). */
+  fwRestoreBackup(id: string, device: string | null): Promise<number>;
+  fwDeleteBackup(id: string): Promise<void>;
+  fwOpenBackups(): Promise<void>;
   fwProjects(): Promise<FirmwareProject[]>;
   /** The sidebar's order (ids, first to last). */
   fwReorderProjects(ids: string[]): Promise<void>;
@@ -118,7 +127,10 @@ export function buildId(id: string): number {
   return h || 1;
 }
 
-export function createFirmwareMock(): FirmwareBackend {
+/** `backupFirst`: the setting that backs up the keyboard's firmware before a flash (`fwBackup`). */
+export function createFirmwareMock(
+  backupFirst: () => boolean = () => true,
+): FirmwareBackend {
   const projects = new Map<
     string,
     {
@@ -145,6 +157,33 @@ export function createFirmwareMock(): FirmwareBackend {
   >();
   /** The sidebar's order; like the app's order.json, a deleted project keeps its place. */
   let order: string[] = [];
+  /** Like the app's firmware-backups folder. */
+  const backups: FirmwareBackup[] = [];
+  const BACKUP_STEP: [string, null] = [
+    "Backing up the firmware on the keyboard",
+    null,
+  ];
+  /** A pretend backup of the V6 8K ISO (the mock's keyboard). */
+  function addBackup() {
+    const at = Math.max(
+      Math.floor(Date.now() / 1000),
+      (backups[0]?.at ?? 0) + 1,
+    );
+    backups.unshift({
+      id: `v6_8k_iso_encoder-${at}`,
+      board: "v6_8k_iso_encoder",
+      name: "Keychron V6 8K ISO Knob",
+      at,
+      size: 262_144,
+      sha256: "0".repeat(64),
+    });
+  }
+  /** The steps of a flash once the bootloader is there, with the backup when it is on. */
+  const writeSteps = (): Array<[string, number | null]> => [
+    ...(backupFirst() ? [BACKUP_STEP] : []),
+    ["Flashing", 0.5],
+    ["Waiting for the keyboard to restart", null],
+  ];
   const jobListeners = new Set<(e: JobEvent) => void>();
   const logListeners = new Set<(l: LogLine) => void>();
   let sourceReady = false;
@@ -407,14 +446,56 @@ export function createFirmwareMock(): FirmwareBackend {
             "Waiting for the keyboard's bootloader: unplug it, hold Esc, plug it back in",
             null,
           ],
-          ["Flashing", 0.5],
-          ["Waiting for the keyboard to restart", null],
+          ...writeSteps(),
         ],
-        () => "Pretend: the keyboard has the profile switcher now.",
+        () => {
+          if (backupFirst()) addBackup();
+          return "Pretend: the keyboard has the profile switcher now.";
+        },
       ),
     fwEnterBootloader: async () => {
       throw new Error("No keyboard in the browser preview.");
     },
+    fwBackups: async () => backups.map((b) => ({ ...b })),
+    fwBackUp: () =>
+      start(
+        "backup",
+        [
+          [
+            "Waiting for the keyboard's bootloader: unplug it, hold Esc, plug it back in",
+            null,
+          ],
+          BACKUP_STEP,
+        ],
+        () => {
+          addBackup();
+          return "Pretend: the V6 8K's firmware is backed up (256 KB).";
+        },
+      ),
+    fwRestoreBackup(id) {
+      const b = backups.find((x) => x.id === id);
+      if (!b) return Promise.reject(new Error("That backup is gone."));
+      return start(
+        "flash",
+        [
+          [
+            "Waiting for the keyboard's bootloader: unplug it, hold Esc, plug it back in",
+            null,
+          ],
+          ...writeSteps(),
+        ],
+        () => {
+          if (backupFirst()) addBackup();
+          flashed.clear();
+          return "Pretend: the V6 8K restarted with the backup.";
+        },
+      );
+    },
+    async fwDeleteBackup(id) {
+      const i = backups.findIndex((b) => b.id === id);
+      if (i >= 0) backups.splice(i, 1);
+    },
+    fwOpenBackups: async () => {},
     fwProjects: async () => {
       const rank = (id: string) =>
         order.includes(id) ? order.indexOf(id) : Infinity;
@@ -604,10 +685,10 @@ export function createFirmwareMock(): FirmwareBackend {
           "Waiting for the keyboard's bootloader: unplug it, hold Esc, plug it back in",
           null,
         ],
-        ["Flashing", 0],
-        ["Waiting for the keyboard to restart", null],
+        ...writeSteps(),
       ],
       () => {
+        if (backupFirst()) addBackup();
         if (rebuild) keepBuild(id);
         flashed.set(p.keyboard, { id, sources: projects.get(id)!.lastBuild!.sources! });
         return `${p.name} flashed (71 KB). The keyboard restarts with it.`;

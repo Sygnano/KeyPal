@@ -15,6 +15,7 @@ import { CrossIcon, GearIcon } from "../ProfileList";
 import { StatusLine } from "../StatusLine";
 import { CodeEditor, forgetEditorState } from "./CodeEditor";
 import { FileGlyph } from "./FirmwareSidebar";
+import { BackupOption } from "./Backups";
 import { BasicFirmware } from "./BasicFirmware";
 import { FlashSteps } from "./FlashSteps";
 import type { FlashBoard } from "../../lib/flashTarget";
@@ -165,6 +166,16 @@ export function FirmwareMain({ mode }: { mode: FwMode }) {
                   onClick={() => setFlashing(true)}
                 >
                   Flash…
+                </button>
+                {/* Back up or restore what is on the keyboard: only the flashing tools are needed,
+                    not the preflight's build tools. */}
+                <button
+                  className="btn btn-ghost"
+                  disabled={running}
+                  onClick={() => useStore.getState().openBackups(true)}
+                  title="Back up the firmware on the keyboard, or write a backup back"
+                >
+                  Backups…
                 </button>
                 {project.lastBuild && (
                   <span className="muted small">
@@ -525,9 +536,16 @@ function FlashDialog({
           memory. If the keyboard misbehaves afterwards, unplug it, hold Esc
           while plugging it back in (if Esc doesn't respond: the reset button
           under the space bar keycap), and flash another firmware. Keychron's
-          own, from their website, puts it back as it came.
+          own, from their website, puts it back as it came, and so does the
+          backup the app makes first.
         </li>
       </ul>
+      <BackupOption
+        onList={() => {
+          onClose();
+          useStore.getState().openBackups(true);
+        }}
+      />
       {picking ? (
         <>
           <DevicePicker target={target} name={name} onChange={setPick} />

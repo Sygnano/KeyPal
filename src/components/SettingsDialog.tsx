@@ -173,6 +173,17 @@ export function SettingsDialog() {
               : "—"}
           </dd>
         </dl>
+        <div className="option-actions">
+          <button
+            className="btn btn-ghost"
+            onClick={() => {
+              close();
+              useStore.getState().openBackups(true);
+            }}
+          >
+            Firmware backups…
+          </button>
+        </div>
         {/* Three states, and no version numbers anywhere. */}
         {moduleState === "current" ? (
           <p className="option-text small ok-text">

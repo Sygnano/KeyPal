@@ -1,6 +1,6 @@
 [package]
 name = "kboard-companion"
-version = "1.0.1"
+version = "1.1.0"
 description = "Per-program key remaps, macros and lighting for Keychron keyboards"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/Sygnano/kboard-companion"

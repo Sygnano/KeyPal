@@ -411,6 +411,10 @@ pub struct Settings {
     /// Firmware tab: "basic" (the app's ready-made firmware) or "advanced" (build your own).
     /// None until the user picks one: the app opens on whichever suits what's installed.
     pub fw_mode: Option<String>,
+    /// Firmware: read what is on the keyboard into a backup before every flash
+    /// (`firmware::backup`).
+    #[serde(default = "default_true")]
+    pub fw_backup: bool,
     /// "system" (follow Windows), "light" or "dark".
     pub theme: String,
     /// Colours the user saved in the colour picker, to reuse in any profile.
@@ -441,6 +445,7 @@ impl Default for Settings {
             fw_msys_path: None,
             fw_source_path: None,
             fw_mode: None,
+            fw_backup: true,
             theme: "system".into(),
             saved_colors: vec![],
             last_board: None,

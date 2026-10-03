@@ -131,7 +131,43 @@ impl Method {
             }
         }
     }
+
+    /// The commands that read the firmware on the chip into `out` (a backup). `leave`: the keyboard
+    /// goes back to its firmware afterwards (a backup on its own); without it, it stays in its
+    /// bootloader for the flash that follows.
+    ///
+    /// dfu-util, given no length, reads to the end of the flash segment the bootloader describes:
+    /// all of the chip's flash, so the emulated EEPROM (Keychron's saved keymap and lighting, at the
+    /// end of the *real* flash) is in the backup too. wb32-dfu-updater reads nothing without a size
+    /// (`-Z`), and never `-t`: that one removes read protection by erasing the chip. Keychron's WB32
+    /// boards keep their settings in an I2C EEPROM, so the flash holds only the firmware, which
+    /// their builds keep within `WB32_FIRMWARE_MAX`.
+    pub fn backup_commands(self, tools: &Path, out: &Path, leave: bool) -> Vec<Command> {
+        match self {
+            Method::DfuUtil { vid, pid } => {
+                let mut c = Command::new(tools.join("dfu-util.exe"));
+                let at = if leave { "0x08000000:leave" } else { "0x08000000" };
+                c.args(["-d", &format!("{vid:04X}:{pid:04X}"), "-a", "0", "-s", at, "-U"]).arg(out);
+                vec![c]
+            }
+            Method::Wb32 => {
+                let mut read = Command::new(tools.join("wb32-dfu-updater_cli.exe"));
+                read.args(["-Z", &WB32_FIRMWARE_MAX.to_string(), "-U"]).arg(out);
+                let mut cmds = vec![read];
+                if leave {
+                    let mut reset = Command::new(tools.join("wb32-dfu-updater_cli.exe"));
+                    reset.arg("-R");
+                    cmds.push(reset);
+                }
+                cmds
+            }
+        }
+    }
 }
+
+/// The most a WB32 keyboard's firmware can take: Keychron's WB32F3G71 builds link with
+/// `WB32F3G71x9.ld` (96 KB of flash).
+pub const WB32_FIRMWARE_MAX: u32 = 96 * 1024;
 
 /// Whether the small flashing tools are downloaded already (the Basic path's only "install").
 #[derive(Serialize, Clone, Debug, PartialEq, Eq)]
@@ -384,8 +420,8 @@ pub fn board_present(board: &Board) -> bool {
 /// Downloads the keyboard's ready-made firmware and the tools, waits for the bootloader, flashes.
 /// `chosen`: the instance id of a device already in bootloader mode that the user picked as their
 /// keyboard (see `pick_bootloader`); without it the app refuses to write to a bootloader it can't
-/// attribute.
-pub fn flash_prebuilt(ctx: &JobCtx, paths: &Paths, board: &Board, chosen: Option<&str>) -> Result<String, String> {
+/// attribute. `backup`: read the firmware on the keyboard into a backup first.
+pub fn flash_prebuilt(ctx: &JobCtx, paths: &Paths, board: &Board, chosen: Option<&str>, backup: bool) -> Result<String, String> {
     let kb = board.firmware.as_deref().ok_or(format!("The app doesn't know where the {}'s firmware is.", board.short_name()))?;
     ctx.step("Finding the ready-made firmware", None);
     let manifest = fetch_manifest()?;
@@ -413,30 +449,36 @@ pub fn flash_prebuilt(ctx: &JobCtx, paths: &Paths, board: &Board, chosen: Option
             return Err("The downloaded firmware doesn't match its checksum. Try again.".into());
         }
     }
-    flash_bin(ctx, paths, board, &bin, chosen, "ready-made", Some(&manifest))
+    flash_bin(ctx, paths, board, &bin, &FlashOptions { chosen, backup, source: "ready-made", release: Some(&manifest) })
 }
 
-/// Writes `bin` to `board`, with the same checks the ready-made path uses: the keyboard must be
-/// plugged in (or the user must have picked the bootloader), the bootloader must have appeared
-/// while waiting (or be the picked one), and the keyboard must come back afterwards. This is the
-/// one flash path: the Advanced tab builds a `.bin` and calls this too, so `make …:flash` (which
-/// writes to whatever has the bootloader's USB id) is never used.
-pub fn flash_bin(
+/// How `flash_bin` goes about it.
+pub struct FlashOptions<'a> {
+    /// The instance id of a device already in bootloader mode that the user picked as their
+    /// keyboard (see `pick_bootloader`).
+    pub chosen: Option<&'a str>,
+    /// Read the firmware on the keyboard into a backup first (`backup::read`). If that fails,
+    /// nothing is written.
+    pub backup: bool,
+    /// For the flash journal: "ready-made", "project", "backup".
+    pub source: &'a str,
+    pub release: Option<&'a Manifest>,
+}
+
+/// Checks that the keyboard can be written to, gets the tools, and waits for its bootloader: what a
+/// flash and a backup on its own both start with. `before` is the bus as it was when the job
+/// started.
+pub fn reach_bootloader(
     ctx: &JobCtx,
     paths: &Paths,
     board: &Board,
-    bin: &Path,
+    method: Method,
+    before: &Bus,
     chosen: Option<&str>,
-    source: &str,
-    release: Option<&Manifest>,
-) -> Result<String, String> {
-    let method = method_for(board)?;
-    // What the bus looks like before anything happens, to tell the keyboard's bootloader from one
-    // that was already plugged in.
-    let before = Bus::now(method);
+) -> Result<(PathBuf, usb::UsbDevice), String> {
     if chosen.is_none() && !board_present(board) {
         return Err(format!(
-            "The app can't see a {} plugged in, and won't write its firmware to a keyboard it hasn't found. Almost every Keychron board shares one bootloader id, so once a keyboard is in bootloader mode the app cannot check the model. Plug the keyboard in (its firmware doesn't have to work), or, if it is already in its bootloader, choose the device the app can see as your keyboard.",
+            "The app can't see a {} plugged in, and won't touch the firmware of a keyboard it hasn't found. Almost every Keychron board shares one bootloader id, so once a keyboard is in bootloader mode the app cannot check the model. Plug the keyboard in (its firmware doesn't have to work), or, if it is already in its bootloader, choose the device the app can see as your keyboard.",
             board.short_name()
         ));
     }
@@ -449,7 +491,7 @@ pub fn flash_bin(
         if ctx.cancelled() {
             return Err("Cancelled.".into());
         }
-        match pick_bootloader(&before, &usb::scan(), method, chosen) {
+        match pick_bootloader(before, &usb::scan(), method, chosen) {
             Pick::Flash(d) => break *d,
             Pick::Refuse(why) => return Err(why),
             Pick::Wait => {
@@ -466,13 +508,37 @@ pub fn flash_bin(
     };
     if !device.driver.as_deref().is_some_and(|s| !s.is_empty()) {
         return Err(format!(
-            "{} is in bootloader mode, but Windows has no driver for it yet: install the driver, then flash again.",
+            "{} is in bootloader mode, but Windows has no driver for it yet: install the driver, then try again.",
             describe_device(&device)
         ));
     }
     // Windows may still be setting the device up.
     std::thread::sleep(Duration::from_millis(500));
     ctx.log(format!("Bootloader found: {}.", describe_device(&device)));
+    Ok((tools, device))
+}
+
+/// Writes `bin` to `board`, with the same checks the ready-made path uses: the keyboard must be
+/// plugged in (or the user must have picked the bootloader), the bootloader must have appeared
+/// while waiting (or be the picked one), and the keyboard must come back afterwards. This is the
+/// one flash path: the Advanced tab builds a `.bin` and calls this too, so `make …:flash` (which
+/// writes to whatever has the bootloader's USB id) is never used.
+pub fn flash_bin(ctx: &JobCtx, paths: &Paths, board: &Board, bin: &Path, opts: &FlashOptions) -> Result<String, String> {
+    let FlashOptions { chosen, backup, source, release } = *opts;
+    let method = method_for(board)?;
+    // What the bus looks like before anything happens, to tell the keyboard's bootloader from one
+    // that was already plugged in.
+    let before = Bus::now(method);
+    let (tools, _device) = reach_bootloader(ctx, paths, board, method, &before, chosen)?;
+    if backup {
+        // Read only, so it can still be cancelled. Failing stops the flash: the user asked for a
+        // way back, and the keyboard hasn't been touched.
+        if let Err(why) = super::backup::read(ctx, paths, board, method, &tools, false) {
+            return Err(format!(
+                "{why} Nothing was written: the keyboard still has its firmware (unplug it and plug it back in to leave the bootloader). To flash without a backup, turn off \"Back up the keyboard's firmware first\"."
+            ));
+        }
+    }
     let file = bin.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     // No Cancel from here: the tool erases before it writes, so stopping it part-way leaves the
     // keyboard with no firmware, and the Esc way back into the bootloader is part of that firmware.

@@ -676,3 +676,69 @@ test("the device to flash: preselected when it can only be the keyboard, never g
   // A pick that has since been unplugged doesn't carry over to whatever replaced it.
   assert.equal(flashTarget(v6, [twin], "AT32").chosen, null);
 });
+
+test("the firmware is backed up before a flash, on its own, and written back", async () => {
+  const { flashProgress } = await import("../src/lib/flashSteps");
+  // `backup::read`'s step sits on the write step, with its own label.
+  const reading = flashProgress({
+    job: {
+      kind: "flash",
+      state: "running",
+      step: "Backing up the firmware on the keyboard",
+    },
+    keyboard: "away",
+  });
+  assert.deepEqual(
+    [reading.count, reading.label, reading.states[1]],
+    [3, "Backing up the firmware", "done"],
+  );
+  // A failed backup stops the flash before anything is written: that step is the one marked.
+  assert.equal(
+    flashProgress({
+      job: {
+        kind: "flash",
+        state: "failed",
+        step: "Backing up the firmware on the keyboard",
+      },
+      keyboard: "back",
+    }).states[2],
+    "failed",
+  );
+
+  let backupFirst = true;
+  await initApi();
+  Object.assign(api, createFirmwareMock(() => backupFirst));
+  useFirmware.setState({ ...pristine }, true);
+  await f().init();
+  const idle = () => f().job?.state !== "running";
+  assert.deepEqual(f().backups, []);
+
+  await f().flashPrebuilt("v6_8k_iso_encoder");
+  await until(() => idle() && f().backups.length === 1);
+  assert.equal(f().backups[0].board, "v6_8k_iso_encoder");
+
+  // Turned off: the flash writes without reading first.
+  backupFirst = false;
+  await f().flashPrebuilt("v6_8k_iso_encoder");
+  await until(idle);
+  await f().refreshBackups();
+  assert.equal(f().backups.length, 1, "no backup with the setting off");
+
+  // On its own: a backup task, nothing written.
+  await f().backUp("v6_8k_iso_encoder");
+  assert.equal(f().job?.kind, "backup");
+  await until(() => idle() && f().backups.length === 2);
+  assert.ok(f().backups[0].at > f().backups[1].at, "newest first");
+
+  // Restoring is a flash task (the tracker follows it).
+  await f().restoreBackup(f().backups[1].id);
+  assert.equal(f().job?.kind, "flash");
+  await until(idle);
+  assert.equal(f().job?.state, "ok");
+  await f().restoreBackup("gone");
+  assert.match(f().error ?? "", /gone/);
+  f().clearError();
+
+  await f().deleteBackup(f().backups[0].id);
+  assert.equal(f().backups.length, 1);
+});

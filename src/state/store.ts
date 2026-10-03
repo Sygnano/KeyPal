@@ -188,6 +188,8 @@ export interface State {
   guideOpen: boolean;
   /** The "Install the profile switcher" dialog (ready-made firmware, no QMK MSYS). */
   installOpen: boolean;
+  /** The firmware backups dialog (what was on the keyboard before the app wrote to it). */
+  backupsOpen: boolean;
   keyLabels: KeyLabels;
   /** The keyboard shown (a board id): the one plugged in, else the last one; null before any. */
   boardId: string | null;
@@ -293,6 +295,7 @@ export interface State {
   /** Opens or closes the guide; closing it remembers it was seen. */
   openGuide(open: boolean): void;
   openInstall(open: boolean): void;
+  openBackups(open: boolean): void;
   /** "auto" or a Windows layout id; saved on this PC, applied immediately. */
   setKeyLabels(choice: string): Promise<void>;
   clearError(): void;
@@ -443,6 +446,7 @@ export const useStore = create<State>((set, get) => ({
   settingsOpen: false,
   guideOpen: false,
   installOpen: false,
+  backupsOpen: false,
   keyLabels: {
     choice: "auto",
     layouts: [],
@@ -1311,6 +1315,10 @@ export const useStore = create<State>((set, get) => ({
 
   openInstall(open) {
     set({ installOpen: open });
+  },
+
+  openBackups(open) {
+    set({ backupsOpen: open });
   },
 
   async checkForUpdate(quiet = false) {

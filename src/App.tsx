@@ -4,6 +4,7 @@ import { BindList } from "./components/BindList";
 import { FirstRun } from "./components/BoardPicker";
 import { GettingStarted } from "./components/GettingStarted";
 import { InstallFirmwareDialog } from "./components/InstallFirmwareDialog";
+import { BackupsDialog } from "./components/firmware/Backups";
 import { TesterControls } from "./components/KeyTester";
 import { KeyboardView } from "./components/KeyboardView";
 import { LayerTabs } from "./components/LayerTabs";
@@ -28,6 +29,7 @@ export function App() {
   const settingsOpen = useStore((s) => s.settingsOpen);
   const guideOpen = useStore((s) => s.guideOpen);
   const installOpen = useStore((s) => s.installOpen);
+  const backupsOpen = useStore((s) => s.backupsOpen);
   const { setTab, clearError, clearNotice, openSettings } = useStore.getState();
   // The key legends live outside React (qmk/labels); remount the views when they change.
   const labelsVersion = useStore((s) => s.keyLabels.version);
@@ -90,6 +92,7 @@ export function App() {
       {settingsOpen && <SettingsDialog />}
       {guideOpen && !settingsOpen && <GettingStarted />}
       {installOpen && <InstallFirmwareDialog />}
+      {backupsOpen && !installOpen && <BackupsDialog />}
     </>
   );
   const toast = error ? (

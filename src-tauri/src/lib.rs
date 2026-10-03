@@ -217,9 +217,14 @@ async fn fw_prebuilt_info(app: AppHandle, board: String, force: bool) -> Result<
 /// bootloader mode that the user picked as their keyboard; the checks in `quick` refuse any other
 /// device the app can't attribute, and they run here so the UI can't be talked past.
 #[tauri::command]
-async fn fw_flash_prebuilt(fw: FwState<'_>, board: String, device: Option<String>) -> Result<u64, String> {
+async fn fw_flash_prebuilt(
+    fw: FwState<'_>,
+    settings: State<'_, SettingsState>,
+    board: String,
+    device: Option<String>,
+) -> Result<u64, String> {
     let b = board::by_id(&board).ok_or(format!("Unknown keyboard {board}."))?;
-    fw.flash_prebuilt(b, device)
+    fw.flash_prebuilt(b, device, settings.get().fw_backup)
 }
 
 #[tauri::command]
@@ -241,7 +246,40 @@ async fn fw_build(fw: FwState<'_>, settings: State<'_, SettingsState>, id: Strin
 /// `device`: the instance id of a device already in bootloader mode that the user picked.
 #[tauri::command]
 async fn fw_flash(fw: FwState<'_>, settings: State<'_, SettingsState>, id: String, device: Option<String>) -> Result<u64, String> {
-    fw.flash_project(&chosen(&settings), &id, device)
+    fw.flash_project(&chosen(&settings), &id, device, settings.get().fw_backup)
+}
+
+/// The firmware backups (`firmware::backup`), newest first.
+#[tauri::command]
+async fn fw_backups(app: AppHandle) -> Result<Vec<firmware::backup::Backup>, String> {
+    blocking(move || firmware::backup::list(&app.state::<firmware::Firmware>().paths)).await
+}
+
+/// Reads the firmware on a keyboard into a backup, writing nothing. `board` and `device` as for
+/// `fw_flash_prebuilt`.
+#[tauri::command]
+async fn fw_back_up(fw: FwState<'_>, board: String, device: Option<String>) -> Result<u64, String> {
+    let b = board::by_id(&board).ok_or(format!("Unknown keyboard {board}."))?;
+    fw.back_up(b, device)
+}
+
+/// Writes a backup back to the keyboard it was read from, through the guarded flash path (backing
+/// up what is on it now first, when the setting says so).
+#[tauri::command]
+async fn fw_restore_backup(fw: FwState<'_>, settings: State<'_, SettingsState>, id: String, device: Option<String>) -> Result<u64, String> {
+    fw.restore_backup(&id, device, settings.get().fw_backup)
+}
+
+#[tauri::command]
+async fn fw_delete_backup(app: AppHandle, id: String) -> Result<(), String> {
+    blocking(move || firmware::backup::delete(&app.state::<firmware::Firmware>().paths, &id)).await?
+}
+
+#[tauri::command]
+async fn fw_open_backups(app: AppHandle) -> Result<(), String> {
+    let dir = app.state::<firmware::Firmware>().paths.backups();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    app.opener().open_path(dir.display().to_string(), None::<&str>).map_err(|e| e.to_string())
 }
 
 /// The keyboard tester's `key-event`: a key went down or up.
@@ -765,6 +803,11 @@ pub fn run() {
             fw_build,
             fw_flash,
             fw_enter_bootloader,
+            fw_backups,
+            fw_back_up,
+            fw_restore_backup,
+            fw_delete_backup,
+            fw_open_backups,
             set_key_report,
             fw_projects,
             fw_reorder_projects,

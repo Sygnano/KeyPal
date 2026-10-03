@@ -3,6 +3,7 @@ import { isMock } from "../../lib/api";
 import { hasModule } from "../../lib/limits";
 import { useFirmware } from "../../state/firmwareStore";
 import { useStore } from "../../state/store";
+import { BackupOption } from "./Backups";
 import { BootloaderHint, FlashNotes, FlashTargetState } from "./FlashBody";
 import { useFlashTarget, useTargetBoard } from "./Preflight";
 
@@ -52,6 +53,7 @@ export function BasicFirmware() {
         <FlashNotes
           onAdvanced={() => void updateSettings({ fwMode: "advanced" })}
         />
+        <BackupOption onList={() => useStore.getState().openBackups(true)} />
 
         {!board ? (
           <p className="warn">

@@ -18,9 +18,10 @@ export function FlashNotes({ onAdvanced }: { onAdvanced?: () => void }) {
       </li>
       <li>
         Nothing here can break the bootloader: it's in the chip's read-only
-        memory. To go back, flash Keychron's own firmware from their website the
-        same way (Esc held while plugging in; if Esc doesn't respond, the reset
-        button under the space bar keycap).
+        memory. To go back, restore the backup the app makes before flashing
+        (Firmware backups), or flash Keychron's own firmware from their website
+        the same way (Esc held while plugging in; if Esc doesn't respond, the
+        reset button under the space bar keycap).
       </li>
       <li>
         Want your own keymap in it instead?{" "}

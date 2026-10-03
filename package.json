@@ -2,7 +2,7 @@
   "name": "kboard-companion",
   "license": "GPL-3.0-or-later",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "module",
   "packageManager": "pnpm@12.3.4",
   "scripts": {

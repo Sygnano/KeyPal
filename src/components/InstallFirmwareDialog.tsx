@@ -11,6 +11,7 @@ import {
   FlashNotes,
   FlashTargetState,
 } from "./firmware/FlashBody";
+import { BackupOption } from "./firmware/Backups";
 import { JobProgress, useFlashTarget } from "./firmware/Preflight";
 
 /** How often the dialog looks at what's plugged in (keyboard, bootloader). */
@@ -72,6 +73,12 @@ export function InstallFirmwareDialog() {
         from QMK Toolbox) are downloaded the first time.
       </p>
       <FlashNotes />
+      <BackupOption
+        onList={() => {
+          close();
+          useStore.getState().openBackups(true);
+        }}
+      />
 
       {!board ? (
         <p className="warn">

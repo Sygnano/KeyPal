@@ -8,6 +8,7 @@ import {
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { FirmwareBackend } from "./firmwareMock";
 import type {
+  FirmwareBackup,
   FirmwareProject,
   FirmwareStatus,
   JobEvent,
@@ -193,6 +194,12 @@ const tauriBackend: Backend = {
   fwFlashPrebuilt: (board, device) =>
     invoke<number>("fw_flash_prebuilt", { board, device }),
   fwEnterBootloader: () => invoke("fw_enter_bootloader"),
+  fwBackups: () => invoke<FirmwareBackup[]>("fw_backups"),
+  fwBackUp: (board, device) => invoke<number>("fw_back_up", { board, device }),
+  fwRestoreBackup: (id, device) =>
+    invoke<number>("fw_restore_backup", { id, device }),
+  fwDeleteBackup: (id) => invoke("fw_delete_backup", { id }),
+  fwOpenBackups: () => invoke("fw_open_backups"),
   fwProjects: () => invoke<FirmwareProject[]>("fw_projects"),
   fwReorderProjects: (ids) => invoke("fw_reorder_projects", { ids }),
   fwGetProject: (id) => invoke<FirmwareProject>("fw_get_project", { id }),

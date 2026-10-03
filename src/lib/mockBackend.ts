@@ -101,7 +101,10 @@ export function createMockBackend(): Backend {
   const keyListeners = new Set<(e: KeyEvent) => void>();
   const keyReports = mockKeyReports((e) => keyListeners.forEach((l) => l(e)));
   return {
-    ...createFirmwareMock(),
+    ...createFirmwareMock(() => {
+      const raw = read(SETTINGS_KEY);
+      return raw ? JSON.parse(raw).fwBackup !== false : true;
+    }),
     async loadConfig() {
       const raw = read(KEY);
       return raw ? (JSON.parse(raw) as AppConfig) : newDefaultConfig();

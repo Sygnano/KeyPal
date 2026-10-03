@@ -16,8 +16,11 @@ Default. Like Corsair iCUE or Logitech G Hub, for Keychron's QMK keyboards.
 >   is interrupted anyway, the keyboard isn't broken: the bootloader that receives firmware is in
 >   the chip's read-only memory. Hold Esc while plugging it in (or press the reset button under the
 >   space bar keycap) and flash again.
-> - **You can always go back** to Keychron's firmware: download it from Keychron's website and flash
->   it the same way.
+> - **You can always go back.** Before every flash KBoard Companion reads the firmware that is on
+>   the keyboard into a backup (with, on most models, its own saved keymap and lighting), and
+>   _Firmware backups_ (Settings → Keyboard, or the Firmware tab) writes one back. Turn
+>   off _Back up the keyboard's firmware first_ to skip it. Keychron's own firmware from their
+>   website, flashed the same way, also puts the keyboard back as it came.
 > - **Only the Keychron V6 8K ISO has been tried so far.** KBoard Companion knows every Keychron model in
 >   Keychron's own firmware (271 of them) and treats them all the same way, but none of the others
 >   has run on real hardware yet. If you try another model, please

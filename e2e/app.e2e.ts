@@ -397,6 +397,42 @@ describe("the app in a browser", { skip: chrome ? false : "no Chrome or Edge ins
     assert.deepEqual(consoleErrors(page), []);
   });
 
+  test("a flash backs up the keyboard's firmware first, and the backup can be written back", async () => {
+    const page = await app();
+    await page.getByRole("tab", { name: "Firmware" }).click();
+    await page.getByRole("tab", { name: "Basic mode" }).click();
+    await page.locator(".fw-basic-body").waitFor({ timeout: 20000 });
+    const option = page.locator(".fw-basic .backup-option input[type=checkbox]");
+    assert.equal(await option.isChecked(), true, "on unless the user turns it off");
+
+    await page.getByRole("button", { name: /^Flash/ }).click();
+    await page.locator(".fw-bottom .fw-steps-label", { hasText: "Keyboard restarted" }).waitFor();
+
+    await page.locator(".fw-basic .backup-option").getByRole("button", { name: "Backups…" }).click();
+    const dialog = page.locator('[role="dialog"][aria-label="Firmware backups"]');
+    const rows = dialog.locator(".backup-row");
+    await rows.first().waitFor();
+    assert.equal(await rows.count(), 1, "the flash made one");
+    assert.match((await rows.first().textContent()) ?? "", /V6 8K/);
+
+    // On demand: nothing written, one more backup.
+    await dialog.getByRole("button", { name: /^Back up/ }).click();
+    await dialog.locator(".fw-ready").waitFor();
+    assert.equal(await rows.count(), 2);
+
+    // Restore asks once more on the same button, then writes it back like a flash.
+    const restore = rows.last().getByRole("button", { name: "Restore" });
+    await restore.click();
+    await rows.last().getByRole("button", { name: "Write it back?" }).click();
+    await dialog.locator(".fw-ready", { hasText: "backup" }).waitFor();
+
+    await rows.first().getByRole("button", { name: "Delete" }).click();
+    await rows.first().getByRole("button", { name: "Delete for good?" }).click();
+    // The restore backed up what it replaced: 3 made, 1 deleted.
+    await page.waitForFunction(() => document.querySelectorAll(".backup-row").length === 2);
+    assert.deepEqual(consoleErrors(page), []);
+  });
+
   test("Settings reaches the guide and the installer from Firmware mode too", async () => {
     const page = await app();
     await page.getByRole("tab", { name: "Firmware" }).click();

@@ -19,6 +19,8 @@ export const FLASH_STEPS = [
   "Keyboard ready",
 ] as const;
 const BUILD_STEP = "Building the firmware";
+/** `backup::read`'s step: the firmware on the keyboard is read before it is written over. */
+const BACKUP_STEP = "Backing up the firmware on the keyboard";
 
 const LAST = FLASH_STEPS.length - 1;
 
@@ -27,6 +29,8 @@ const LAST = FLASH_STEPS.length - 1;
 function stepIndex(step: string | null): number {
   if (!step) return 0;
   if (step.startsWith("Waiting for the keyboard's bootloader")) return 1;
+  // Part of the write step: the keyboard is in its bootloader, nothing written yet.
+  if (step.startsWith(BACKUP_STEP)) return 2;
   if (step.startsWith("Flashing")) return 2;
   if (step.startsWith("Waiting for the keyboard to restart")) return 3;
   return 0;
@@ -72,7 +76,7 @@ export function flashProgress({
       labels,
       states: upTo(at, "active"),
       count: at + 1,
-      label: labels[at],
+      label: flash.step?.startsWith(BACKUP_STEP) ? "Backing up the firmware" : labels[at],
       tone: "busy",
     };
   }
