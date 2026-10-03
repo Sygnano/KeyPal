@@ -4,6 +4,8 @@
 and your keyboard switches to that game's profile; go back to your desktop and it goes back to
 Default. Like Corsair iCUE or Logitech G Hub, for Keychron's QMK keyboards.
 
+![KBoard Companion's Lighting tab: a Keychron V6 8K playing its profile's lighting on screen](.github/screenshots/lighting.png)
+
 > [!WARNING]
 > **KBoard Companion replaces your keyboard's firmware.** Remaps and macros need a small module inside the
 > keyboard's firmware, so KBoard Companion (or you, by hand) writes a new firmware to the keyboard: Keychron's
@@ -100,6 +102,8 @@ whatever program is in front; the X goes back to automatic switching.
 
 ### Keys
 
+![The Keys tab: the keyboard's layers as tabs, the profile's remaps and details below](.github/screenshots/keys.png)
+
 - Click a key to remap it: another key, a QMK keycode, a macro, or _Disable_.
 - The tabs above the keyboard are its **layers**. The dot marks the one in use (the Mac/Win switch
   picks it), _Fn_ marks layers a key turns on while held. Double-click a tab to rename it. A key with
@@ -137,6 +141,8 @@ _Firmware_ at the top of the sidebar. The toggle at the bottom of the sidebar pi
   module added, and gives you an editor (Ctrl+S saves). **Test build** compiles and points at any
   errors; **Flash…** builds and writes it to the keyboard. When a KBoard Companion update brings a new module,
   the project offers _Update the module_.
+
+![Firmware mode, Advanced: a firmware project with its files, Test build and Flash, and the keyboard status](.github/screenshots/firmware.png)
 
 [firmware/README.md](firmware/README.md) explains how to add the module to a keymap by hand, if you
 build with QMK yourself.
